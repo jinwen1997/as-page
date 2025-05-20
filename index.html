@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AES加密解密工具</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text x=%220%22 y=%2214%22>🔒</text></svg>">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8f9fa;
+      padding: 40px;
+      max-width: 700px;
+      margin: auto;
+    }
+    h2 {
+      color: #343a40;
+      text-align: center;
+    }
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 15px;
+    }
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      margin-top: 8px;
+    }
+    .radio-group label {
+      font-weight: normal;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ced4da;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin: 10px 5px 0 0;
+      cursor: pointer;
+      background-color: #007bff;
+      border: none;
+      color: white;
+      border-radius: 6px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .status {
+      color: green;
+      margin-top: 10px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h2>🔐 AES加密解密工具</h2>
+  <label for="text">请输入文本:</label>
+  <textarea id="text" rows="5"></textarea>
+
+  <label for="key">请输入密钥（可以是中文）:</label>
+  <input type="text" id="key">
+
+  <label>操作:</label>
+  <div class="radio-group">
+    <label><input type="radio" name="mode" value="encrypt" checked> 加密</label>
+    <label><input type="radio" name="mode" value="decrypt"> 解密</label>
+  </div>
+
+  <div>
+    <button onclick="process()">执行</button>
+    <button onclick="copyResult()">复制结果</button>
+    <button onclick="clearFields()">清空</button>
+  </div>
+
+  <label for="result">结果:</label>
+  <textarea id="result" rows="5" readonly></textarea>
+
+  <div class="status" id="status"></div>
+
+  <script>
+    function getKey(key) {
+      return CryptoJS.SHA256(key);
+    }
+
+    function process() {
+      const text = document.getElementById("text").value;
+      const key = document.getElementById("key").value;
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const status = document.getElementById("status");
+      status.textContent = "正在处理中...";
+
+      if (!key || !text) {
+        alert("文本和密钥都不能为空");
+        status.textContent = "";
+        return;
+      }
+
+      try {
+        let result = "";
+        const iv = CryptoJS.lib.WordArray.random(16);
+        const aesKey = getKey(key);
+
+        if (mode === "encrypt") {
+          const encrypted = CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(text), aesKey, {
+            iv: iv,
+            padding: CryptoJS.pad.Pkcs7,
+            mode: CryptoJS.mode.CBC
+          });
+          const combined = iv.concat(encrypted.ciphertext);
+          result = CryptoJS.enc.Base64.stringify(combined);
+          status.textContent = "加密完成";
+        } else {
+          const rawData = CryptoJS.enc.Base64.parse(text);
+          const iv = CryptoJS.lib.WordArray.create(rawData.words.slice(0, 4));
+          const ciphertext = CryptoJS.lib.WordArray.create(rawData.words.slice(4));
+          const decrypted = CryptoJS.AES.decrypt({ ciphertext: ciphertext }, aesKey, {
+            iv: iv,
+            padding: CryptoJS.pad.Pkcs7,
+            mode: CryptoJS.mode.CBC
+          });
+          result = decrypted.toString(CryptoJS.enc.Utf8);
+          if (!result) throw new Error("解密失败");
+          status.textContent = "解密完成";
+        }
+        document.getElementById("result").value = result;
+      } catch (err) {
+        alert("处理失败: " + err.message);
+        status.textContent = "处理失败";
+      }
+    }
+
+function copyResult() {
+  const resultField = document.getElementById("result");
+  if (resultField.value) {
+    resultField.removeAttribute("readonly"); // 解除只读状态才能选中
+    resultField.select();
+    document.execCommand("copy");
+    resultField.setAttribute("readonly", "readonly"); // 恢复只读
+    alert("已复制到剪贴板");
+  } else {
+    alert("没有结果可复制");
+  }
+}
+
+
+    function clearFields() {
+      document.getElementById("text").value = "";
+      document.getElementById("result").value = "";
+      document.getElementById("status").textContent = "";
+    }
+  </script>
+</body>
+</html>
